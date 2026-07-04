@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Admin Dashboard</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" integrity="sha384-..." crossorigin="anonymous">
+    <style>
+        .analytics-card { cursor: pointer; transition: transform .2s ease, box-shadow .2s ease; }
+        .analytics-card:hover { transform: translateY(-2px); box-shadow: 0 16px 30px rgba(0, 0, 0, 0.08); }
+        .analytics-card.active { border-color: #198754; }
+        .dashboard-section { display: none; }
+        .dashboard-section.active { display: block; }
+        .load-section-btn.active { box-shadow: 0 0 0 0.2rem rgba(13,110,253,.25); }
+        .status-message { min-height: 1.5rem; font-weight: 500; }
+        .status-message.is-busy { color: #8a6d3b; }
+        .status-message.is-success { color: #198754; }
+        .status-message.is-error { color: #dc3545; }
+    </style>
+</head>
+<body>
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Admin Dashboard</h1>
+        <a href="/logout" class="btn btn-secondary">Logout</a>
+    </div>
+
+    <div id="dashboard-status" class="alert alert-info status-message mb-4" role="status" aria-live="polite">Choose an action to continue.</div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-sm-4">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title">Users</h5>
+                    <p class="card-text">Manage platform users and view active accounts.</p>
+                    <button type="button" data-section="users" class="btn btn-primary load-section-btn">Manage Users</button>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-4">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title">Retailers</h5>
+                    <p class="card-text">Approve retailers and manage retailer status.</p>
+                    <button type="button" data-section="retailers" class="btn btn-primary load-section-btn">Manage Retailers</button>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-4">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title">Analytics</h5>
+                    <p class="card-text">View platform analytics and reports.</p>
+                    <button type="button" data-section="analytics" class="btn btn-primary load-section-btn">View Analytics</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-lg-6">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title">Stores</h5>
+                    <p class="card-text">Manage retailer stores and listings.</p>
+                    <button type="button" data-section="stores" class="btn btn-outline-primary load-section-btn">Manage Stores</button>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title">Products</h5>
+                    <p class="card-text">Review and manage product catalog entries.</p>
+                    <button type="button" data-section="products" class="btn btn-outline-primary load-section-btn">Manage Products</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-lg-4">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title">Categories</h5>
+                    <p class="card-text">Manage product categories and catalog taxonomy.</p>
+                    <button type="button" data-section="categories" class="btn btn-outline-primary load-section-btn">Manage Categories</button>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title">Offers</h5>
+                    <p class="card-text">Manage active promotions and coupon campaigns.</p>
+                    <button type="button" data-section="offers" class="btn btn-outline-primary load-section-btn">Manage Offers</button>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title">Reports</h5>
+                    <p class="card-text">View reports submitted by users and take action.</p>
+                    <button type="button" data-section="reports" class="btn btn-outline-primary load-section-btn">View Reports</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <section id="analytics" class="dashboard-section mb-5 active">
+        <h2>Analytics Summary</h2>
+        <div class="row" id="analytics-summary">
+            <div class="col-sm-3 mb-3" th:each="metric : ${analytics}">
+                <div class="card h-100 shadow-sm">
+                    <div class="card-body">
+                        <h6 th:text="${metric.key}"></h6>
+                        <p class="fs-3" th:text="${metric.value}"></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Analytics Detail Modal -->
+    <div class="modal fade" id="analyticsDetailModal" tabindex="-1" aria-labelledby="analyticsDetailLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="analyticsDetailLabel">Metric Details</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body" id="analyticsDetailContent">
+                    <!-- Content will be populated dynamically -->
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <section id="users" class="dashboard-section mb-5">
+        <h2>Users</h2>
+        <div id="users-table"></div>
+    </section>
+
+    <section id="retailers" class="dashboard-section mb-5">
+        <h2>Retailers</h2>
+        <div id="retailer-table"></div>
+    </section>
+
+    <section id="stores" class="dashboard-section mb-5">
+        <h2>Stores</h2>
+        <div id="stores-table"></div>
+    </section>
+
+    <section id="products" class="dashboard-section mb-5">
+        <h2>Products</h2>
+        <div id="products-table"></div>
+    </section>
+
+    <section id="categories" class="dashboard-section mb-5">
+        <h2>Categories</h2>
+        <div id="categories-table"></div>
+    </section>
+
+    <section id="offers" class="dashboard-section mb-5">
+        <h2>Offers</h2>
+        <div id="offers-table"></div>
+    </section>
+
+    <section id="reports" class="dashboard-section mb-5">
+        <h2>Reports</h2>
+        <div id="reports-table"></div>
+    </section>
+
+    <section id="notifications" class="mb-5">
+        <h2>Notifications</h2>
+        <form id="notification-form">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">Target Type</label>
+                    <select class="form-select" id="targetType">
+                        <option value="all">all</option>
+                        <option value="customer">customer</option>
+                        <option value="retailer">retailer</option>
+                        <option value="admin">admin</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Target ID</label>
+                    <input type="number" class="form-control" id="targetId" placeholder="Optional">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Title</label>
+                    <input type="text" class="form-control" id="notificationTitle" required>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Message</label>
+                    <input type="text" class="form-control" id="notificationMessage" required>
+                </div>
+            </div>
+            <div class="mt-3">
+                <button type="submit" class="btn btn-success">Send Notification</button>
+                <span class="text-success" id="notificationResult"></span>
+            </div>
+        </form>
+    </section>
+</div>
+
+<script>
+    function showFeedback(message, variant = 'info', isBusy = false) {
+        const status = document.getElementById('dashboard-status');
+        if (!status) return;
+        status.className = `alert alert-${variant} status-message ${isBusy ? 'is-busy' : variant === 'success' ? 'is-success' : variant === 'danger' ? 'is-error' : ''}`;
+        status.innerHTML = isBusy ? `<span class="me-2">⏳</span>${message}` : message;
+    }
+
+    function setButtonBusy(button, isBusy, label = 'Please wait...') {
+        if (!button) return;
+        button.disabled = isBusy;
+        button.textContent = isBusy ? label : (button.dataset.originalLabel || button.textContent);
+    }
+
+    async function fetchJson(url, options = {}) {
+        const response = await fetch(url, options);
+        if (!response.ok) {
+            const errorText = await response.text().catch(() => '');
+            throw new Error(errorText || `Request failed with status ${response.status}`);
+        }
+        const contentType = response.headers.get('content-type') || '';
+        if (contentType.includes('application/json')) {
+            return response.json();
+        }
+        return response.text();
+    }
+
+    const sectionConfigs = {
+        analytics: { loader: loadAnalytics },
+        users: { loader: () => renderTable('users', '/api/admin/users', ['id', 'name', 'email']) },
+        retailers: { loader: () => renderRetailerTable('/api/admin/retailers') },
+        stores: { loader: () => renderTable('stores', '/api/admin/stores', ['id', 'name', 'slug', 'city', 'status']) },
+        products: { loader: () => renderProductsTable('/api/admin/products') },
+        categories: { loader: () => renderTable('categories', '/api/admin/categories', ['id', 'name', 'slug']) },
+        offers: { loader: () => renderTable('offers', '/api/admin/offers', ['id', 'title', 'offerType', 'discountType', 'discount']) },
+        reports: { loader: () => renderTable('reports', '/api/admin/reports', ['id', 'reporterType', 'reportType', 'subject', 'description', 'entity_type', 'entity_id', 'status']) }
+    };
+
+    function showSection(sectionId) {
+        document.querySelectorAll('.dashboard-section').forEach(section => {
+            section.classList.toggle('active', section.id === sectionId);
+        });
+        document.querySelectorAll('.load-section-btn').forEach(button => {
+            button.classList.toggle('active', button.getAttribute('data-section') === sectionId);
+        });
+    }
+
+    function setSectionLoading(sectionId, message) {
+        const container = document.getElementById(`${sectionId}-table`) || document.getElementById(`${sectionId}-summary`);
+        if (container) {
+            container.innerHTML = `<p class="text-muted">${message}</p>`;
+        }
+    }
+
+    async function loadSection(sectionId) {
+        const config = sectionConfigs[sectionId];
+        if (!config) return;
+        const button = document.querySelector(`[data-section="${sectionId}"]`);
+        if (button) {
+            button.dataset.originalLabel = button.dataset.originalLabel || button.textContent;
+            setButtonBusy(button, true, 'Please wait...');
+        }
+
+        showSection(sectionId);
+
+        if (sectionId === 'analytics') {
+            setSectionLoading('analytics', 'Loading analytics...');
+        } else {
+            setSectionLoading(sectionId, 'Loading data...');
+        }
+
+        showFeedback('Please wait while the dashboard loads this section.', 'info', true);
+
+        try {
+            await config.loader();
+            showFeedback('The section has been loaded successfully.', 'success');
+        } catch (error) {
+            showFeedback(error.message || 'Unable to load this section right now.', 'danger');
+        } finally {
+            if (button) {
+                setButtonBusy(button, false);
+            }
+            const section = document.getElementById(sectionId);
+            if (section) {
+                section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        }
+    }
+
+    async function loadAnalytics() {
+        const analytics = await fetchJson('/api/admin/analytics');
+        const analyticsSummary = document.getElementById('analytics-summary');
+        analyticsSummary.innerHTML = '';
+        if (!analytics) {
+            analyticsSummary.innerHTML = '<p class="text-danger">Unable to load analytics.</p>';
+            return;
+        }
+        Object.entries(analytics).forEach(([key, value]) => {
+            const card = document.createElement('div');
+            card.className = 'col-sm-3 mb-3';
+            card.innerHTML = `
+                <div class="card analytics-card h-100 shadow-sm" style="cursor: pointer;">
+                    <div class="card-body">
+                        <h6>${key}</h6>
+                        <p class="fs-3">${value}</p>
+                        <small class="text-muted">Click to view details</small>
+                    </div>
+                </div>`;
+            const analyticsCard = card.querySelector('.analytics-card');
+            analyticsCard.addEventListener('click', () => {
+                showAnalyticsDetail(key, value);
+            });
+            analyticsSummary.appendChild(card);
+        });
+    }
+
+    function showAnalyticsDetail(metricName, metricValue) {
+        const modal = new bootstrap.Modal(document.getElementById('analyticsDetailModal'));
+        const titleElement = document.getElementById('analyticsDetailLabel');
+        const contentElement = document.getElementById('analyticsDetailContent');
+        
+        titleElement.textContent = metricName;
+        
+        const details = {
+            'totalUsers': 'Total number of registered users (customers) on the platform.',
+            'totalRetailers': 'Total number of registered retailers/vendors.',
+            'totalStores': 'Total number of retail stores listed on the platform.',
+            'totalProducts': 'Total number of products in the catalog.',
+            'totalOffers': 'Total number of active offers and promotions.',
+            'totalReports': 'Total number of reports submitted by users.',
+            'totalCoupons': 'Total number of coupon codes issued.'
+        };
+        
+        contentElement.innerHTML = `
+            <div class="alert alert-info">
+                <h5 class="mb-3">${metricName}</h5>
+                <p><strong>Current Value:</strong> <span class="fs-3 text-primary">${metricValue}</span></p>
+                <p><strong>Description:</strong> ${details[metricName] || 'Metric information'}</p>
+                <hr>
+                <p class="text-muted small mb-0"><strong>Updated:</strong> ${new Date().toLocaleString()}</p>
+            </div>
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="card bg-light">
+                        <div class="card-body">
+                            <h6>View Related Data</h6>
+                            <button class="btn btn-sm btn-outline-primary" onclick="loadRelatedSection('${metricName}')">Open Section</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        modal.show();
+    }
+
+    function loadRelatedSection(metricName) {
+        const sectionMap = {
+            'totalUsers': 'users',
+            'totalRetailers': 'retailers',
+            'totalStores': 'stores',
+            'totalProducts': 'products',
+            'totalOffers': 'offers',
+            'totalReports': 'reports',
+            'totalCoupons': 'offers'
+        };
+        
+        const sectionId = sectionMap[metricName];
+        if (sectionId) {
+            bootstrap.Modal.getInstance(document.getElementById('analyticsDetailModal')).hide();
+            const button = document.querySelector(`[data-section="${sectionId}"]`);
+            if (button) {
+                button.click();
+            }
+        }
+    }
+
+    async function renderProductsTable(url) {
+        const data = await fetchJson(url);
+        const container = document.getElementById('products-table');
+        if (!data) {
+            container.innerHTML = '<p class="text-danger">Unable to load products.</p>';
+            return;
+        }
+        if (!data.length) {
+            container.innerHTML = '<p>No products found.</p>';
+            return;
+        }
+
+        container.innerHTML = '';
+        const grid = document.createElement('div');
+        grid.className = 'row g-4';
+
+        data.forEach(product => {
+            const card = document.createElement('div');
+            card.className = 'col-md-6 col-lg-4';
+            
+            // Get image URL from imagePath property or set default
+            const imageUrl = product.imagePath || 'https://via.placeholder.com/300x200?text=No+Image';
+            
+            card.innerHTML = `
+                <div class="card h-100 shadow-sm border-0">
+                    <img src="${imageUrl}" alt="${product.name}" class="card-img-top" style="height: 200px; object-fit: cover;">
+                    <div class="card-body">
+                        <h5 class="card-title">${product.name}</h5>
+                        <p class="card-text text-muted small">
+                            <strong>SKU:</strong> ${product.sku}<br>
+                            <strong>Price:</strong> $${product.price || 'N/A'}<br>
+                            <strong>Status:</strong> <span class="badge ${product.active ? 'bg-success' : 'bg-danger'}">${product.active ? 'Active' : 'Inactive'}</span>
+                        </p>
+                        ${product.description ? `<p class="card-text small">${product.description.substring(0, 80)}...</p>` : ''}
+                    </div>
+                    <div class="card-footer bg-light">
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-sm btn-info flex-grow-1" onclick="viewProductDetails(${product.id}, '${product.name}', '${imageUrl}', '${product.sku}', ${product.price}, ${product.active})">View</button>
+                            <button class="btn btn-sm btn-warning" onclick="editProduct(${product.id})">Edit</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            grid.appendChild(card);
+        });
+
+        container.appendChild(grid);
+    }
+
+    function viewProductDetails(id, name, image, sku, price, active) {
+        const modal = new bootstrap.Modal(document.createElement('div'));
+        const content = `
+            <div class="modal fade" id="productDetailModal" tabindex="-1">
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Product Details</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <img src="${image}" alt="${name}" class="img-fluid rounded" style="max-height: 300px; object-fit: cover;">
+                                </div>
+                                <div class="col-md-6">
+                                    <h4>${name}</h4>
+                                    <p><strong>Product ID:</strong> ${id}</p>
+                                    <p><strong>SKU:</strong> ${sku}</p>
+                                    <p><strong>Price:</strong> $${price}</p>
+                                    <p><strong>Status:</strong> <span class="badge ${active ? 'bg-success' : 'bg-danger'}">${active ? 'Active' : 'Inactive'}</span></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        const modalDiv = document.createElement('div');
+        modalDiv.innerHTML = content;
+        document.body.appendChild(modalDiv);
+        const newModal = new bootstrap.Modal(modalDiv.querySelector('.modal'));
+        newModal.show();
+        
+        modalDiv.addEventListener('hidden.bs.modal', () => {
+            modalDiv.remove();
+        });
+    }
+
+    function editProduct(id) {
+        alert('Edit product ' + id + ' - Implementation pending');
+    }
+
+    async function renderTable(sectionId, url, fields) {
+        const data = await fetchJson(url);
+        const container = document.getElementById(`${sectionId}-table`);
+        if (!data) {
+            container.innerHTML = '<p class="text-danger">Unable to load data.</p>';
+            return;
+        }
+        if (!data.length) {
+            container.innerHTML = '<p>No records found.</p>';
+            return;
+        }
+        const table = document.createElement('table');
+        table.className = 'table table-striped';
+        const header = document.createElement('thead');
+        header.innerHTML = `<tr>${fields.map(field => `<th>${field}</th>`).join('')}<th>Actions</th></tr>`;
+        const body = document.createElement('tbody');
+        data.forEach(item => {
+            const row = document.createElement('tr');
+            row.innerHTML = fields.map(field => `<td>${item[field] ?? ''}</td>`).join('');
+            const actions = document.createElement('td');
+            if (sectionId === 'reports') {
+                const statusSelect = document.createElement('select');
+                statusSelect.className = 'form-select form-select-sm';
+                statusSelect.innerHTML = ['open','in_review','resolved','closed'].map(status => `<option value="${status}" ${item.status === status ? 'selected' : ''}>${status}</option>`).join('');
+                statusSelect.addEventListener('change', async () => {
+                    await updateReportStatus(item.id, statusSelect.value);
+                });
+                actions.appendChild(statusSelect);
+            }
+            row.appendChild(actions);
+            body.appendChild(row);
+        });
+        table.appendChild(header);
+        table.appendChild(body);
+        container.innerHTML = '';
+        container.appendChild(table);
+    }
+
+    async function renderRetailerTable(url) {
+        const data = await fetchJson(url);
+        const container = document.getElementById('retailer-table');
+        if (!data) {
+            container.innerHTML = '<p class="text-danger">Unable to load data.</p>';
+            return;
+        }
+        if (!data.length) {
+            container.innerHTML = '<p>No records found.</p>';
+            return;
+        }
+        const table = document.createElement('table');
+        table.className = 'table table-striped';
+        const header = document.createElement('thead');
+        header.innerHTML = '<tr><th>id</th><th>companyName</th><th>contactName</th><th>email</th><th>status</th><th>actions</th></tr>';
+        const body = document.createElement('tbody');
+        data.forEach(item => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${item.id}</td>
+                <td>${item.companyName}</td>
+                <td>${item.contactName}</td>
+                <td>${item.email}</td>
+                <td>${item.status}</td>`;
+            const actions = document.createElement('td');
+            const approveButton = document.createElement('button');
+            approveButton.className = 'btn btn-sm btn-success me-1';
+            approveButton.type = 'button';
+            approveButton.textContent = 'Approve';
+            approveButton.addEventListener('click', async () => {
+                await approveRetailer(item.id, approveButton);
+            });
+            const rejectButton = document.createElement('button');
+            rejectButton.className = 'btn btn-sm btn-danger';
+            rejectButton.type = 'button';
+            rejectButton.textContent = 'Reject';
+            rejectButton.addEventListener('click', async () => {
+                await rejectRetailer(item.id, rejectButton);
+            });
+            actions.appendChild(approveButton);
+            actions.appendChild(rejectButton);
+            row.appendChild(actions);
+            body.appendChild(row);
+        });
+        table.appendChild(header);
+        table.appendChild(body);
+        container.innerHTML = '';
+        container.appendChild(table);
+    }
+
+    async function updateReportStatus(id, status) {
+        showFeedback('Please wait while the report status is being updated.', 'info', true);
+        try {
+            const response = await fetch(`/api/admin/reports/${id}/status`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status })
+            });
+            const result = await response.json().catch(() => null);
+            if (!response.ok) {
+                throw new Error(result?.message || 'Unable to update the report status right now.');
+            }
+            showFeedback(`Report status updated to ${result.status}.`, 'success');
+            await loadSection('reports');
+        } catch (error) {
+            showFeedback(error.message || 'Unable to update the report status.', 'danger');
+        }
+    }
+
+    async function approveRetailer(id, button) {
+        showFeedback('Please wait while the retailer is being approved.', 'info', true);
+        setButtonBusy(button, true, 'Approving...');
+        try {
+            const response = await fetch(`/api/admin/retailers/${id}/approve`, { method: 'POST' });
+            if (!response.ok) {
+                throw new Error('Unable to approve this retailer right now.');
+            }
+            showFeedback('Retailer approved successfully.', 'success');
+            await loadSection('retailers');
+        } catch (error) {
+            showFeedback(error.message || 'Unable to approve this retailer right now.', 'danger');
+        } finally {
+            setButtonBusy(button, false);
+        }
+    }
+
+    async function rejectRetailer(id, button) {
+        showFeedback('Please wait while the retailer is being rejected.', 'info', true);
+        setButtonBusy(button, true, 'Rejecting...');
+        try {
+            const response = await fetch(`/api/admin/retailers/${id}/reject`, { method: 'POST' });
+            if (!response.ok) {
+                throw new Error('Unable to reject this retailer right now.');
+            }
+            showFeedback('Retailer rejected successfully.', 'success');
+            await loadSection('retailers');
+        } catch (error) {
+            showFeedback(error.message || 'Unable to reject this retailer right now.', 'danger');
+        } finally {
+            setButtonBusy(button, false);
+        }
+    }
+
+    function initializeSectionPlaceholders() {
+        const sections = ['analytics', 'users', 'retailers', 'stores', 'products', 'categories', 'offers', 'reports'];
+        sections.forEach(sectionId => {
+            const element = document.getElementById(`${sectionId}-table`) || document.getElementById(`${sectionId}-summary`);
+            if (element) {
+                element.innerHTML = '<p class="text-muted">Click the matching dashboard card to load this section.</p>';
+            }
+        });
+    }
+
+    function setupAdminDashboard() {
+        initializeSectionPlaceholders();
+        document.querySelectorAll('.load-section-btn').forEach(button => {
+            button.dataset.originalLabel = button.textContent;
+            button.addEventListener('click', () => {
+                const sectionId = button.getAttribute('data-section');
+                loadSection(sectionId);
+            });
+        });
+    }
+
+    document.getElementById('notification-form').addEventListener('submit', async event => {
+        event.preventDefault();
+        const submitButton = event.target.querySelector('button[type="submit"]');
+        const resultLabel = document.getElementById('notificationResult');
+        const targetType = document.getElementById('targetType').value;
+        const targetIdValue = document.getElementById('targetId').value;
+        const title = document.getElementById('notificationTitle').value.trim();
+        const message = document.getElementById('notificationMessage').value.trim();
+        const targetId = targetIdValue ? Number(targetIdValue) : null;
+
+        // Store original button label if not already stored
+        if (!submitButton.dataset.originalLabel) {
+            submitButton.dataset.originalLabel = submitButton.textContent;
+        }
+
+        if (!title || !message) {
+            resultLabel.className = 'text-danger ms-2';
+            resultLabel.innerText = 'Title and message are required.';
+            return;
+        }
+
+        // Disable button and show loading state
+        submitButton.disabled = true;
+        submitButton.textContent = 'Sending...';
+        resultLabel.className = 'text-muted ms-2';
+        resultLabel.innerText = 'Please wait while the notification is being sent...';
+        showFeedback('Please wait while the notification is being sent.', 'info', true);
+
+        try {
+            const response = await fetch('/api/admin/notifications', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ targetType, targetId, title, message })
+            });
+            const result = await response.json().catch(() => null);
+            if (!response.ok) {
+                throw new Error(result?.message || 'Unable to send the notification right now.');
+            }
+            resultLabel.className = 'text-success ms-2';
+            resultLabel.innerText = 'Notification sent successfully!';
+            showFeedback('Notification sent successfully.', 'success');
+            
+            // Reset form fields
+            event.target.reset();
+            document.getElementById('targetType').value = 'all';
+            document.getElementById('targetId').value = '';
+            document.getElementById('notificationTitle').value = '';
+            document.getElementById('notificationMessage').value = '';
+            
+            console.log(result);
+            
+            // Clear result message after 5 seconds
+            setTimeout(() => {
+                resultLabel.innerText = '';
+                resultLabel.className = '';
+            }, 5000);
+        } catch (error) {
+            resultLabel.className = 'text-danger ms-2';
+            resultLabel.innerText = error.message || 'Unable to send the notification.';
+            showFeedback(error.message || 'Unable to send the notification.', 'danger');
+        } finally {
+            // Re-enable button with original label
+            submitButton.disabled = false;
+            submitButton.textContent = submitButton.dataset.originalLabel || 'Send Notification';
+        }
+    });
+
+    setupAdminDashboard();
+</script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js" integrity="sha384-..." crossorigin="anonymous"></script>
+</body>
+</html>

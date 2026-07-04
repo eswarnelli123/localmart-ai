@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Retailer Shops | LocalMart AI</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+<nav class="navbar navbar-expand-lg navbar-dark bg-success">
+    <div class="container">
+        <a class="navbar-brand" href="/">LocalMart AI</a>
+        <div class="collapse navbar-collapse show">
+            <ul class="navbar-nav ms-auto">
+                <li class="nav-item"><a class="nav-link" href="/retailer/dashboard">Dashboard</a></li>
+                <li class="nav-item"><a class="nav-link" href="/retailer/shops">Shops</a></li>
+                <li class="nav-item"><a class="nav-link" href="/retailer/products">Products</a></li>
+                <li class="nav-item"><a class="nav-link" href="/retailer/offers">Offers</a></li>
+                <li class="nav-item"><a class="nav-link" href="/retailer/analytics">Analytics</a></li>
+                <li class="nav-item"><a class="nav-link" th:href="@{/logout}">Logout</a></li>
+            </ul>
+        </div>
+    </div>
+</nav>
+<div class="container py-5">
+    <div class="row mb-4">
+        <div class="col">
+            <h3>Manage Shops</h3>
+            <p class="text-muted">Create new stores and keep your retail locations up to date.</p>
+        </div>
+    </div>
+    <div class="row gy-4">
+        <div class="col-lg-6">
+            <div class="card p-4 shadow-sm">
+                <h5>Create a new shop</h5>
+                <form id="createShopForm">
+                    <div class="mb-3">
+                        <label class="form-label">Shop Name *</label>
+                        <input type="text" class="form-control" id="shopName" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Location / Address Line 1 *</label>
+                        <input type="text" class="form-control" id="shopLocation" placeholder="Paste Google Maps URL or enter address" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Address Line 2</label>
+                        <input type="text" class="form-control" id="shopAddressLine2" placeholder="Apartment, suite, etc.">
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">City</label>
+                            <input type="text" class="form-control" id="shopCity" placeholder="e.g., Delhi">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">State</label>
+                            <input type="text" class="form-control" id="shopState" placeholder="e.g., Delhi">
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Country</label>
+                            <input type="text" class="form-control" id="shopCountry" placeholder="e.g., India">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Postal Code *</label>
+                            <input type="text" class="form-control" id="shopPostalCode" placeholder="e.g., 110001" required>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Phone</label>
+                        <input type="tel" class="form-control" id="shopPhone" placeholder="e.g., +91-9876543210">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Description</label>
+                        <textarea class="form-control" id="shopDescription" rows="3" placeholder="Brief description of your store"></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-success w-100">Create Shop</button>
+                </form>
+                <div id="shopMessage" class="alert mt-3 d-none"></div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="card p-4 shadow-sm">
+                <h5>Your shops</h5>
+                <div id="shopsList">
+                    <p class="text-muted">Loading your shops...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+    const shopsList = document.getElementById('shopsList');
+    const shopMessage = document.getElementById('shopMessage');
+
+    async function loadShops() {
+        try {
+            const response = await fetch('/api/retailer/shops', { credentials: 'same-origin' });
+            if (!response.ok) throw new Error('Unable to load shops');
+            const shops = await response.json();
+            if (!shops.length) {
+                shopsList.innerHTML = '<p class="text-muted">No shops yet. Create one to start selling.</p>';
+                return;
+            }
+            shopsList.innerHTML = '<div class="list-group">' + shops.map(shop => `
+                <div class="list-group-item">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div style="flex: 1;">
+                            <h6 class="mb-1">${escapeHtml(shop.name)}</h6>
+                            <p class="mb-1 small text-muted">
+                                <strong>Address:</strong> ${escapeHtml(shop.addressLine1 || 'Not specified')}
+                                ${shop.addressLine2 ? ', ' + escapeHtml(shop.addressLine2) : ''}
+                            </p>
+                            <p class="mb-1 small text-muted">
+                                <strong>Location:</strong> ${escapeHtml(shop.city || 'Unknown')}, ${escapeHtml(shop.state || 'Unknown')}, ${escapeHtml(shop.country || 'Unknown')} ${shop.postalCode ? '- ' + escapeHtml(shop.postalCode) : ''}
+                            </p>
+                            ${shop.phone ? '<p class="mb-1 small text-muted"><strong>Phone:</strong> ' + escapeHtml(shop.phone) + '</p>' : ''}
+                            ${shop.latitude ? '<p class="mb-0 small text-success"><strong>Coordinates:</strong> ' + shop.latitude.toFixed(4) + ', ' + shop.longitude.toFixed(4) + '</p>' : ''}
+                            <p class="mb-0">${escapeHtml(shop.description || '')}</p>
+                        </div>
+                        <span class="badge bg-success">ID: ${shop.id}</span>
+                    </div>
+                </div>
+            `).join('') + '</div>';
+        } catch (err) {
+            shopsList.innerHTML = `<div class="alert alert-danger">${err.message}</div>`;
+        }
+    }
+
+    function escapeHtml(value) {
+        if (value == null) return '';
+        return value.toString().replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+    }
+
+    document.getElementById('createShopForm').addEventListener('submit', async function (e) {
+        e.preventDefault();
+        const payload = {
+            name: document.getElementById('shopName').value,
+            location: document.getElementById('shopLocation').value,
+            addressLine2: document.getElementById('shopAddressLine2').value,
+            city: document.getElementById('shopCity').value,
+            state: document.getElementById('shopState').value,
+            country: document.getElementById('shopCountry').value,
+            postalCode: document.getElementById('shopPostalCode').value,
+            phone: document.getElementById('shopPhone').value,
+            description: document.getElementById('shopDescription').value
+        };
+        try {
+            const response = await fetch('/api/retailer/shop', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(errorText || 'Unable to create shop');
+            }
+            const result = await response.json();
+            shopMessage.classList.remove('d-none', 'alert-danger');
+            shopMessage.classList.add('alert-success');
+            shopMessage.innerText = 'Shop created: ' + result.name + ' (ID: ' + result.id + ')';
+            document.getElementById('createShopForm').reset();
+            await loadShops();
+        } catch (err) {
+            shopMessage.classList.remove('d-none', 'alert-success');
+            shopMessage.classList.add('alert-danger');
+            shopMessage.innerText = err.message;
+        }
+    });
+
+    loadShops();
+</script>
+</body>
+</html>

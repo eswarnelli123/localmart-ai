@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Dashboard | LocalMart AI</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+<nav class="navbar navbar-expand-lg navbar-dark bg-success">
+    <div class="container">
+        <a class="navbar-brand" href="/">LocalMart AI</a>
+        <div class="collapse navbar-collapse show">
+            <ul class="navbar-nav ms-auto">
+                <li class="nav-item"><a class="nav-link" href="/home">Home</a></li>
+                <li class="nav-item"><a class="nav-link" href="/wishlist">Wishlist</a></li>
+                <li class="nav-item"><a class="nav-link" href="/coupons">Coupons</a></li>
+                <li class="nav-item"><a class="nav-link" href="/logout">Logout</a></li>
+            </ul>
+        </div>
+    </div>
+</nav>
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <div class="card shadow-sm p-4 mb-4">
+                <div class="d-flex flex-column flex-md-row justify-content-between align-items-start gap-3">
+                    <div>
+                        <h3 class="mb-2">Welcome to your dashboard</h3>
+                        <p class="text-muted mb-0">Browse offers, discover nearby shops, and shop by category.</p>
+                    </div>
+                    <form class="d-flex gap-2" th:action="@{/dashboard}" method="get">
+                        <input type="search" name="query" class="form-control" placeholder="Search products, offers, shops" th:value="${query}">
+                        <button class="btn btn-success">Search</button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="row g-4 mb-4" id="category-list">
+                <div class="col-md-6 col-lg-3" th:each="category : ${categories}">
+                    <div class="card p-4 h-100 category-card text-center">
+                        <div class="mb-3 display-6 text-success">🛍️</div>
+                        <h5 th:text="${category.name}">Category</h5>
+                        <p class="text-muted">Explore products in this category.</p>
+                        <a class="btn btn-outline-success btn-sm" th:href="@{/dashboard(category=${category.slug})}">View</a>
+                    </div>
+                </div>
+                <div class="col-md-6 col-lg-3" th:if="${#lists.size(categories)} < 4">
+                    <div class="card p-4 h-100 category-card text-center">
+                        <div class="mb-3 display-6 text-success">📦</div>
+                        <h5>Electronics</h5>
+                        <p class="text-muted">Smart devices, accessories, and gadgets.</p>
+                    </div>
+                </div>
+                <div class="col-md-6 col-lg-3" th:if="${#lists.size(categories)} < 3">
+                    <div class="card p-4 h-100 category-card text-center">
+                        <div class="mb-3 display-6 text-success">👗</div>
+                        <h5>Fashion</h5>
+                        <p class="text-muted">Trendy clothing and everyday style.</p>
+                    </div>
+                </div>
+                <div class="col-md-6 col-lg-3" th:if="${#lists.size(categories)} < 2">
+                    <div class="card p-4 h-100 category-card text-center">
+                        <div class="mb-3 display-6 text-success">💊</div>
+                        <h5>Health</h5>
+                        <p class="text-muted">Wellness products and personal care.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card shadow-sm p-4 mb-4">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h4 class="mb-0">Products</h4>
+                    <a class="btn btn-sm btn-outline-success" href="/coupons">View coupons</a>
+                </div>
+                <div class="row g-4">
+                    <div class="col-md-6 col-xl-4" th:each="product : ${products}">
+                        <div class="card h-100 d-flex flex-column position-relative">
+                            <div class="product-image-wrapper bg-light" style="height: 180px; overflow: hidden;">
+                                <img th:if="${product.imagePath != null}" th:src="@{${product.imagePath}}"
+                                     th:alt="${product.name}" class="w-100 h-100" style="object-fit: cover;">
+                                <div th:unless="${product.imagePath != null}"
+                                     class="w-100 h-100 d-flex align-items-center justify-content-center text-muted">
+                                    No image available
+                                </div>
+                            </div>
+                            <div class="card-body d-flex flex-column">
+                                <h6 class="text-muted mb-1" th:text="${product.brand != null ? product.brand : 'Unknown brand'}">Brand</h6>
+                                <h4 class="card-title fw-bold" th:text="${product.name}">Product name</h4>
+                                <p class="card-text text-muted mb-2 small" th:text="${product.description}">Product description</p>
+                                <div class="mb-3 p-3 bg-light rounded">
+                                    <p class="mb-2 fs-5 fw-bold">
+                                        <span th:if="${product.effectivePrice != null and product.effectivePrice != product.price}">
+                                            <span class="text-decoration-line-through text-muted me-2">₹<span th:text="${product.price}">0.00</span></span>
+                                            <span class="text-success">₹<span th:text="${product.effectivePrice}">0.00</span></span>
+                                        </span>
+                                        <span th:unless="${product.effectivePrice != null and product.effectivePrice != product.price}">₹<span th:text="${product.price}">0.00</span></span>
+                                    </p>
+                                    <p class="mb-0" th:if="${product.effectivePrice != null and product.effectivePrice != product.price}">
+                                        <span class="badge bg-danger" th:text="${'Save ' + #numbers.formatDecimal((product.price - product.effectivePrice) / product.price * 100, 1, 0) + '%'}">Save 20%</span>
+                                    </p>
+                                </div>
+                                <p class="mb-2 fs-6"><strong>Stock:</strong> <span class="fw-bold text-success" th:text="${product.stock != null ? product.stock : 0}">0</span></p>
+                                <div class="mt-auto">
+                                    <span class="badge bg-success" th:text="${product.active ? 'In stock' : 'Inactive'}">In stock</span>
+                                </div>
+                                <a th:href="@{/product/{id}(id=${product.id})}" class="stretched-link"></a>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-12" th:if="${products.empty}">
+                        <div class="alert alert-info mb-0">No products found. Try a different search term or category.</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card shadow-sm p-4 mb-4">
+                <h4 class="mb-3">Share your experience with us</h4>
+                <button type="button" class="btn btn-primary mb-3" id="showReportFormButton" onclick="showReportForm()">Report an issue</button>
+                <div id="reportFormContainer" class="d-none">
+                <form id="reportForm" class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label">Issue type</label>
+                        <select class="form-select" id="reportType" required>
+                            <option value="product_issue">Product issue</option>
+                            <option value="order_issue">Order issue</option>
+                            <option value="technical">Technical issue</option>
+                            <option value="feedback">Feedback</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Subject</label>
+                        <input type="text" class="form-control" id="reportSubject" required>
+                    </div>
+                    <input type="hidden" id="reporterType" value="customer">
+                    <div class="col-12">
+                        <label class="form-label">Describe the problem</label>
+                        <textarea class="form-control" id="reportDescription" rows="3" required></textarea>
+                    </div>
+                    <div class="col-12 d-flex align-items-center gap-2">
+                        <button type="submit" class="btn btn-outline-success" id="reportSubmitButton">Submit report</button>
+                        <span id="reportFeedback" class="text-muted"></span>
+                    </div>
+                </form>
+                </div>
+
+            <div class="card shadow-sm p-4">
+                <h4 class="mb-3">Recent orders</h4>
+                <div th:if="${recentOrders.empty}">
+                    <p class="text-muted mb-0">No recent orders to display yet.</p>
+                </div>
+                <div th:if="${!recentOrders.empty}">
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Order</th>
+                                    <th>Date</th>
+                                    <th>Status</th>
+                                    <th>Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr th:each="order : ${recentOrders}">
+                                    <td th:text="${order.orderNumber}">ORD-001</td>
+                                    <td th:text="${order.orderDate}">2026-06-26</td>
+                                    <td th:text="${order.status}">Delivered</td>
+                                    <td th:text="${order.total}">₹0.00</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+    document.getElementById('reportForm')?.addEventListener('submit', async function (event) {
+        event.preventDefault();
+        const feedback = document.getElementById('reportFeedback');
+        const payload = {
+            reporterType: document.getElementById('reporterType').value,
+            reportType: document.getElementById('reportType').value,
+            subject: document.getElementById('reportSubject').value.trim(),
+            description: document.getElementById('reportDescription').value.trim(),
+            status: 'open'
+        };
+        feedback.textContent = 'Please wait while your report is being submitted...';
+        feedback.className = 'text-muted';
+        try {
+            const response = await fetch('/api/reports', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const result = await response.json().catch(() => null);
+            if (!response.ok) {
+                throw new Error(result?.message || 'Unable to submit your report right now.');
+            }
+            feedback.textContent = 'Your report was submitted successfully. An admin will review it shortly.';
+            feedback.className = 'text-success';
+            event.target.reset();
+        } catch (error) {
+            feedback.textContent = error.message || 'Unable to submit your report.';
+            feedback.className = 'text-danger';
+        }
+    });
+    function showReportForm() {
+        const container = document.getElementById('reportFormContainer');
+        const button = document.getElementById('showReportFormButton');
+        if (container && button) {
+            container.classList.remove('d-none');
+            button.classList.add('d-none');
+        }
+    }
+</script>
+</body>
+</html>

@@ -1,0 +1,765 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Retailer Products | LocalMart AI</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+<div class="container py-5">
+    <div class="row mb-4">
+        <div class="col">
+            <h3>Manage Products</h3>
+            <p class="text-muted">Select a shop, add new items, and update your catalog in real time.</p>
+        </div>
+    </div>
+
+    <div class="card p-4 shadow-sm mb-4">
+        <h5>Choose shop</h5>
+        <div class="row g-3 align-items-end">
+            <div class="col-md-8">
+                <select id="shopSelect" class="form-select">
+                    <option value="">Loading shops...</option>
+                </select>
+            </div>
+            <div class="col-md-4 text-end">
+                <button id="refreshShops" class="btn btn-outline-secondary">Refresh shops</button>
+            </div>
+        </div>
+        <div id="shopError" class="alert alert-danger mt-3 d-none"></div>
+    </div>
+
+    <div class="card p-4 shadow-sm mb-4">
+        <h5 id="productFormTitle">Add product</h5>
+        <form id="productForm">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">Product Name</label>
+                    <input type="text" class="form-control" id="productName" required>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Brand</label>
+                    <input type="text" class="form-control" id="productBrand" placeholder="e.g., Nike">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label fw-bold">Original Price (₹)</label>
+                    <input type="number" step="0.01" class="form-control form-control-lg fw-bold" id="productPrice" required>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Discount %</label>
+                    <input type="number" step="0.01" class="form-control form-control-lg" id="productDiscountPercent">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label fw-bold\">Stock Qty</label>
+                    <input type="number" class="form-control form-control-lg fw-bold" id="productStock" required>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Category</label>
+                    <select id="productCategory" class="form-select">
+                        <option value="">Loading categories...</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label fw-bold text-success">Final Price</label>
+                    <div class="input-group">
+                        <span class="input-group-text fw-bold bg-success text-white">₹</span>
+                        <input type="text" readonly class="form-control fw-bold text-success fs-5" id="productDiscountedPriceDisplay" value="0.00">
+                    </div>
+                    <small class="text-muted d-block mt-2" id="discountInfo"></small>
+                </div>
+                <input type="hidden" id="productImagePath">
+                <div class="col-md-6">
+                    <label class="form-label">Product image</label>
+                    <input type="file" class="form-control" id="productImageFile" accept="image/*">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Crop area preview</label>
+                    <canvas id="cropCanvas" class="w-100 border rounded" style="height: 180px; touch-action: none; cursor: grab;"></canvas>
+                </div>
+                <div class="col-12">
+                    <button type="button" class="btn btn-outline-secondary" id="cropImageBtn">Crop image</button>
+                    <span class="text-muted ms-3">Click the crop button after positioning the square frame, then use Create Product.</span>
+                </div>
+                <div class="col-12">
+                    <div id="productImagePreviewText" class="form-text text-muted">No image selected.</div>
+                    <img id="productPreviewImg" class="img-fluid rounded mt-2 d-none" style="max-width: 100%; max-height: 180px; object-fit: cover;" alt="Cropped preview">
+                </div>
+                <div class="col-12">
+                    <label class="form-label">Description</label>
+                    <textarea class="form-control" id="productDescription" rows="3"></textarea>
+                </div>
+                <div class="col-12 text-end">
+                    <button type="submit" class="btn btn-success" id="submitProduct">Create Product</button>
+                    <button type="button" class="btn btn-secondary d-none" id="cancelEdit">Cancel</button>
+                </div>
+            </div>
+        </form>
+        <div id="productMessage" class="alert mt-3 d-none"></div>
+    </div>
+
+    <div class="card p-4 shadow-sm mb-4">
+        <h5>Products in selected shop</h5>
+        <div id="productsStatus" class="alert alert-info d-none">Loading products...</div>
+        <div class="table-responsive">
+            <table class="table table-bordered table-hover" id="productsTable">
+                <thead class="table-light">
+                <tr>
+                    <th>Image</th>
+                    <th>Name</th>
+                    <th>Price</th>
+                    <th>Stock</th>
+                    <th>Active</th>
+                    <th>Actions</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr><td colspan="6" class="text-center">Select a shop to load products.</td></tr>
+                </tbody>
+            </table>
+        </div>
+        <div id="productsError" class="alert alert-danger mt-3 d-none"></div>
+    </div>
+
+</div>
+
+<script>
+    let selectedShopId = null;
+    let editingProductId = null;
+    let selectedImageFile = null;
+    let selectedImageUrl = null;
+    let croppedImageBlob = null;
+    let cropSelection = null;
+    let isDragging = false;
+    let dragStart = null;
+    let imageBounds = null;
+    let imageOffset = { x: 0, y: 0 };
+
+    const shopSelect = document.getElementById('shopSelect');
+    const shopError = document.getElementById('shopError');
+    const productsError = document.getElementById('productsError');
+    const productMessage = document.getElementById('productMessage');
+    const productFormTitle = document.getElementById('productFormTitle');
+    const submitProductButton = document.getElementById('submitProduct');
+    const cancelEditButton = document.getElementById('cancelEdit');
+    const productImageFile = document.getElementById('productImageFile');
+    const productImagePath = document.getElementById('productImagePath');
+    const productImagePreviewText = document.getElementById('productImagePreviewText');
+    const productPreviewImg = document.getElementById('productPreviewImg');
+    const cropCanvas = document.getElementById('cropCanvas');
+    const cropCtx = cropCanvas.getContext('2d');
+    const cropImageBtn = document.getElementById('cropImageBtn');
+
+    const previewImage = new Image();
+    const CROP_GUIDE_RATIO = 1;
+    const CROP_OUTPUT_WIDTH = 800;
+    const CROP_OUTPUT_HEIGHT = 800;
+
+    function updateCanvasSize() {
+        cropCanvas.width = cropCanvas.clientWidth * window.devicePixelRatio;
+        cropCanvas.height = cropCanvas.clientHeight * window.devicePixelRatio;
+        cropCtx.setTransform(window.devicePixelRatio, 0, 0, window.devicePixelRatio, 0, 0);
+    }
+
+    async function loadShops() {
+        shopError.classList.add('d-none');
+        shopSelect.disabled = true;
+        shopSelect.innerHTML = '<option value="">Loading shops...</option>';
+        try {
+            const response = await fetch('/api/retailer/shops', { credentials: 'same-origin' });
+            if (!response.ok) throw new Error('Unable to load shops');
+            const shops = await response.json();
+            if (shops.length === 0) {
+                shopSelect.innerHTML = '<option value="">No shops found. Create one first.</option>';
+                selectedShopId = null;
+                renderProducts([]);
+                return;
+            }
+            shopSelect.innerHTML = '<option value="">Select a shop...</option>' + shops.map(shop =>
+                `<option value="${shop.id}">${shop.name}${shop.location ? ' — ' + shop.location : ''}</option>`
+            ).join('');
+            shopSelect.disabled = false;
+            selectedShopId = shops[0].id;
+            shopSelect.value = selectedShopId;
+            await loadProductsForShop(selectedShopId);
+            await loadCategories();
+        } catch (err) {
+            shopError.classList.remove('d-none');
+            shopError.textContent = err.message;
+            shopSelect.innerHTML = '<option value="">Unable to load shops</option>';
+            shopSelect.disabled = true;
+        }
+    }
+
+    async function loadCategories() {
+        const categorySelect = document.getElementById('productCategory');
+        categorySelect.disabled = true;
+        try {
+            const res = await fetch('/api/admin/categories', { credentials: 'same-origin' });
+            if (!res.ok) throw new Error('Unable to load categories');
+            const categories = await res.json();
+            if (!categories || categories.length === 0) {
+                categorySelect.innerHTML = '<option value="">(no categories)</option>';
+                categorySelect.disabled = false;
+                return;
+            }
+            categorySelect.innerHTML = '<option value="">(select category)</option>' + categories.map(c => `<option value="${escapeHtml(c.name)}">${escapeHtml(c.name)}</option>`).join('');
+            categorySelect.disabled = false;
+        } catch (err) {
+            categorySelect.innerHTML = '<option value="">Unable to load categories</option>';
+            categorySelect.disabled = true;
+        }
+    }
+
+    async function loadProductsForShop(shopId) {
+        productsError.classList.add('d-none');
+        const productsStatus = document.getElementById('productsStatus');
+        const tbody = document.querySelector('#productsTable tbody');
+        productsStatus.classList.remove('d-none');
+        productsStatus.textContent = 'Loading products...';
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center">Loading products...</td></tr>';
+        if (!shopId) {
+            productsStatus.textContent = 'Select a shop to load products.';
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center">Select a shop to load products.</td></tr>';
+            return;
+        }
+        try {
+            const response = await fetch(`/api/retailer/shop/${shopId}/products`, { credentials: 'same-origin' });
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(errorText || 'Unable to load products');
+            }
+            const products = await response.json();
+            renderProducts(products);
+            productsStatus.classList.add('d-none');
+        } catch (err) {
+            productsError.classList.remove('d-none');
+            productsError.textContent = err.message;
+            productsStatus.classList.remove('d-none');
+            productsStatus.className = 'alert alert-danger';
+            productsStatus.textContent = 'Failed to load products.';
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center">Failed to load products.</td></tr>';
+        }
+    }
+
+    function renderProducts(products) {
+        const productsStatus = document.getElementById('productsStatus');
+        productsStatus.classList.add('d-none');
+        const tbody = document.querySelector('#productsTable tbody');
+        if (!products || products.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center">No products found for this shop.</td></tr>';
+            return;
+        }
+        tbody.innerHTML = '';
+        products.forEach(product => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td class="text-center">${product.imagePath ? `<img src="${escapeHtml(product.imagePath)}" alt="${escapeHtml(product.name)}" class="img-thumbnail" style="max-width: 80px; max-height: 60px;" />` : '<span class="text-muted">No image</span>'}</td>
+                <td>${escapeHtml(product.name)}</td>
+                <td>${formatPrice(product.price, product.effectivePrice)}</td>
+                <td>${product.stock != null ? product.stock : ''}</td>
+                <td>${product.active ? 'Yes' : 'No'}</td>`;
+            const actionCell = document.createElement('td');
+            const editButton = document.createElement('button');
+            editButton.type = 'button';
+            editButton.className = 'btn btn-sm btn-primary me-2';
+            editButton.textContent = 'Edit';
+            editButton.addEventListener('click', () => editProduct(product));
+
+            const deleteButton = document.createElement('button');
+            deleteButton.type = 'button';
+            deleteButton.className = 'btn btn-sm btn-danger';
+            deleteButton.textContent = 'Delete';
+            deleteButton.addEventListener('click', () => deleteProduct(product.id));
+
+            actionCell.appendChild(editButton);
+            actionCell.appendChild(deleteButton);
+            row.appendChild(actionCell);
+            tbody.appendChild(row);
+        });
+    }
+
+    function escapeHtml(value) {
+        if (value == null) return '';
+        return value.toString().replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+    }
+
+    function formatPrice(original, effective) {
+        if (original == null) {
+            return '';
+        }
+        if (effective != null && effective !== original) {
+            return `<div>₹${original.toFixed(2)}</div><div class="text-success small">₹${effective.toFixed(2)}</div>`;
+        }
+        return `₹${original.toFixed(2)}`;
+    }
+
+    function updateDiscountedPriceDisplay() {
+        const price = parseFloat(document.getElementById('productPrice').value);
+        const discountPercent = parseFloat(document.getElementById('productDiscountPercent').value);
+        const display = document.getElementById('productDiscountedPriceDisplay');
+        const discountInfo = document.getElementById('discountInfo');
+        if (!price || !discountPercent || discountPercent <= 0) {
+            display.value = price ? `${price.toFixed(2)}` : '0.00';
+            discountInfo.textContent = '';
+            return;
+        }
+        const discount = Math.min(Math.max(discountPercent, 0), 100);
+        const effective = price * (1 - discount / 100);
+        const savings = price - effective;
+        display.value = `${Math.round(effective * 100) / 100}`;
+        discountInfo.textContent = `Save ₹${savings.toFixed(2)} (${discount}% off)`;
+    }
+
+    async function createProduct(payload) {
+        const fileToUpload = croppedImageBlob ? new File([croppedImageBlob], 'product-cropped.png', { type: 'image/png' }) : (selectedImageFile || null);
+        if (fileToUpload) {
+            const formData = new FormData();
+            formData.append('request', new Blob([JSON.stringify(payload)], { type: 'application/json' }));
+            formData.append('file', fileToUpload, fileToUpload.name || 'product-image.png');
+
+            const response = await fetch(`/api/retailer/shop/${selectedShopId}/product`, {
+                credentials: 'same-origin',
+                method: 'POST',
+                body: formData
+            });
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(errorText || 'Unable to create product');
+            }
+            return response.json();
+        }
+
+        const response = await fetch(`/api/retailer/shop/${selectedShopId}/product`, {
+            credentials: 'same-origin',
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(errorText || 'Unable to create product');
+        }
+        return response.json();
+    }
+
+    async function updateProduct(productId, payload) {
+        const fileToUpload = croppedImageBlob ? new File([croppedImageBlob], 'product-cropped.png', { type: 'image/png' }) : (selectedImageFile || null);
+        if (fileToUpload) {
+            const formData = new FormData();
+            formData.append('request', new Blob([JSON.stringify(payload)], { type: 'application/json' }));
+            formData.append('file', fileToUpload, fileToUpload.name || 'product-image.png');
+
+            const response = await fetch(`/api/retailer/product/${productId}`, {
+                credentials: 'same-origin',
+                method: 'PUT',
+                body: formData
+            });
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(errorText || 'Unable to update product');
+            }
+            return response.json();
+        }
+
+        const response = await fetch(`/api/retailer/product/${productId}`, {
+            credentials: 'same-origin',
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(errorText || 'Unable to update product');
+        }
+        return response.json();
+    }
+
+    async function uploadProductImage(productId, file) {
+        const formData = new FormData();
+        formData.append('file', file, 'product-cropped.png');
+            const response = await fetch(`/api/retailer/product/${productId}/image`, {
+                credentials: 'same-origin',
+            method: 'POST',
+            body: formData
+        });
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(errorText || 'Unable to upload product image');
+        }
+        return response.json();
+    }
+
+    async function deleteProduct(productId) {
+        if (!confirm('Delete this product?')) return;
+        try {
+            const response = await fetch(`/api/retailer/product/${productId}`, { method: 'DELETE', credentials: 'same-origin' });
+            if (!response.ok) throw new Error('Unable to delete product');
+            productMessage.classList.remove('d-none', 'alert-danger');
+            productMessage.classList.add('alert-success');
+            productMessage.innerText = 'Product deleted successfully.';
+            await loadProductsForShop(selectedShopId);
+        } catch (err) {
+            productMessage.classList.remove('d-none', 'alert-success');
+            productMessage.classList.add('alert-danger');
+            productMessage.innerText = err.message;
+        }
+    }
+
+    function editProduct(product) {
+        editingProductId = product.id;
+        productFormTitle.innerText = 'Edit product';
+        submitProductButton.innerText = 'Save changes';
+        cancelEditButton.classList.remove('d-none');
+        document.getElementById('productName').value = product.name || '';
+        document.getElementById('productBrand').value = product.brand || '';
+        document.getElementById('productDescription').value = product.description || '';
+        document.getElementById('productPrice').value = product.price != null ? product.price : '';
+        document.getElementById('productCategory').value = product.category || '';
+        const discountPercent = (product.price != null && product.effectivePrice != null && product.effectivePrice !== product.price)
+            ? Math.round((1 - product.effectivePrice / product.price) * 100 * 100) / 100
+            : '';
+        document.getElementById('productDiscountPercent').value = discountPercent;
+        document.getElementById('productStock').value = product.stock != null ? product.stock : '';
+        productImagePath.value = product.imagePath || '';
+        selectedImageFile = null;
+        croppedImageBlob = null;
+        cropSelection = null;
+        productImageFile.value = '';
+        updateDiscountedPriceDisplay();
+        if (product.imagePath) {
+            selectedImageUrl = product.imagePath;
+            previewImage.src = selectedImageUrl;
+            previewImage.onload = () => {
+                productPreviewImg.src = product.imagePath;
+                productPreviewImg.alt = product.name || 'Product image';
+                productPreviewImg.classList.remove('d-none');
+                productImagePreviewText.textContent = 'Existing image will remain until a new crop is uploaded.';
+                drawCanvas();
+            };
+        } else {
+            selectedImageUrl = null;
+            productPreviewImg.classList.add('d-none');
+            productPreviewImg.src = '';
+            productImagePreviewText.textContent = 'No image selected.';
+            drawCanvas();
+        }
+    }
+
+    function resetProductForm() {
+        editingProductId = null;
+        productFormTitle.innerText = 'Add product';
+        submitProductButton.innerText = 'Create Product';
+        cancelEditButton.classList.add('d-none');
+        document.getElementById('productForm').reset();
+        productImagePath.value = '';
+        selectedImageFile = null;
+        selectedImageUrl = null;
+        croppedImageBlob = null;
+        cropSelection = null;
+        imageOffset = { x: 0, y: 0 };
+        productImagePreviewText.textContent = 'No image selected.';
+        productPreviewImg.classList.add('d-none');
+        productMessage.classList.add('d-none');
+        drawCanvas();
+    }
+
+    function drawCanvas() {
+        updateCanvasSize();
+        cropCtx.clearRect(0, 0, cropCanvas.width, cropCanvas.height);
+        cropCtx.save();
+        cropCtx.scale(1 / window.devicePixelRatio, 1 / window.devicePixelRatio);
+        cropCtx.clearRect(0, 0, cropCanvas.width, cropCanvas.height);
+        if (!selectedImageUrl) {
+            cropCtx.restore();
+            cropCtx.font = '16px Arial';
+            cropCtx.fillStyle = '#777';
+            cropCtx.fillText('Choose an image to crop.', 10, 50);
+            return;
+        }
+
+        const canvasWidth = cropCanvas.clientWidth;
+        const canvasHeight = cropCanvas.clientHeight;
+        const ratio = Math.min(canvasWidth / previewImage.naturalWidth, canvasHeight / previewImage.naturalHeight);
+        const drawWidth = previewImage.naturalWidth * ratio;
+        const drawHeight = previewImage.naturalHeight * ratio;
+        const offsetX = (canvasWidth - drawWidth) / 2;
+        const offsetY = (canvasHeight - drawHeight) / 2;
+        imageBounds = { x: offsetX, y: offsetY, width: drawWidth, height: drawHeight };
+
+        if (!cropSelection) {
+            initializeCropSelection();
+        }
+
+        const imageDrawX = offsetX + imageOffset.x;
+        const imageDrawY = offsetY + imageOffset.y;
+        cropCtx.drawImage(previewImage, imageDrawX, imageDrawY, drawWidth, drawHeight);
+        if (cropSelection) {
+            cropCtx.save();
+            cropCtx.fillStyle = 'rgba(0, 0, 0, 0.45)';
+            cropCtx.fillRect(0, 0, canvasWidth, cropSelection.y);
+            cropCtx.fillRect(0, cropSelection.y, cropSelection.x, cropSelection.height);
+            cropCtx.fillRect(cropSelection.x + cropSelection.width, cropSelection.y, canvasWidth - (cropSelection.x + cropSelection.width), cropSelection.height);
+            cropCtx.fillRect(0, cropSelection.y + cropSelection.height, canvasWidth, canvasHeight - (cropSelection.y + cropSelection.height));
+            cropCtx.restore();
+
+            cropCtx.strokeStyle = '#ffffff';
+            cropCtx.lineWidth = 3;
+            cropCtx.setLineDash([8, 5]);
+            cropCtx.strokeRect(cropSelection.x, cropSelection.y, cropSelection.width, cropSelection.height);
+            cropCtx.setLineDash([]);
+            cropCtx.strokeStyle = '#00aaff';
+            cropCtx.lineWidth = 2;
+            cropCtx.strokeRect(cropSelection.x, cropSelection.y, cropSelection.width, cropSelection.height);
+        }
+        cropCtx.restore();
+    }
+
+    function getCanvasCoordinates(event) {
+        const rect = cropCanvas.getBoundingClientRect();
+        return {
+            x: (event.clientX - rect.left),
+            y: (event.clientY - rect.top)
+        };
+    }
+
+    function clamp(value, min, max) {
+        return Math.min(Math.max(value, min), max);
+    }
+
+    function initializeCropSelection() {
+        if (!imageBounds) return;
+        const boxSize = Math.min(imageBounds.width, imageBounds.height);
+        const x = imageBounds.x + (imageBounds.width - boxSize) / 2;
+        const y = imageBounds.y + (imageBounds.height - boxSize) / 2;
+        cropSelection = { x, y, width: boxSize, height: boxSize };
+    }
+
+    function startSelection(point) {
+        if (!imageBounds) return;
+        if (!cropSelection) {
+            initializeCropSelection();
+        }
+        if (!cropSelection) return;
+        dragStart = { x: point.x, y: point.y, imageOffsetX: imageOffset.x, imageOffsetY: imageOffset.y };
+        isDragging = true;
+        cropCanvas.style.cursor = 'grabbing';
+    }
+
+    function updateSelection(point) {
+        if (!isDragging || !dragStart || !imageBounds || !cropSelection) return;
+        const deltaX = point.x - dragStart.x;
+        const deltaY = point.y - dragStart.y;
+        const maxOffsetX = Math.max(0, imageBounds.width - cropSelection.width);
+        const maxOffsetY = Math.max(0, imageBounds.height - cropSelection.height);
+        imageOffset.x = clamp(dragStart.imageOffsetX + deltaX, -maxOffsetX, maxOffsetX);
+        imageOffset.y = clamp(dragStart.imageOffsetY + deltaY, -maxOffsetY, maxOffsetY);
+        drawCanvas();
+    }
+
+    function finishSelection() {
+        isDragging = false;
+        dragStart = null;
+        cropCanvas.style.cursor = 'grab';
+        drawCanvas();
+    }
+
+    function getCropAreaOnOriginal() {
+        if (!cropSelection || !imageBounds) return null;
+        const ratio = previewImage.naturalWidth / imageBounds.width;
+        const sx = Math.max(0, Math.min(previewImage.naturalWidth - 1, Math.round((cropSelection.x - imageBounds.x - imageOffset.x) * ratio)));
+        const sy = Math.max(0, Math.min(previewImage.naturalHeight - 1, Math.round((cropSelection.y - imageBounds.y - imageOffset.y) * ratio)));
+        const sw = Math.max(1, Math.min(previewImage.naturalWidth - sx, Math.round(cropSelection.width * ratio)));
+        const sh = Math.max(1, Math.min(previewImage.naturalHeight - sy, Math.round(cropSelection.height * ratio)));
+        return { sx, sy, sw, sh };
+    }
+
+    productImageFile.addEventListener('change', async function (event) {
+        const file = event.target.files[0];
+        selectedImageFile = file || null;
+        cropSelection = null;
+        imageOffset = { x: 0, y: 0 };
+        croppedImageBlob = null;
+        productImagePath.value = '';
+        productPreviewImg.classList.add('d-none');
+
+        if (!selectedImageFile) {
+            selectedImageUrl = null;
+            productImagePreviewText.textContent = 'No image selected.';
+            drawCanvas();
+            return;
+        }
+
+        selectedImageUrl = URL.createObjectURL(selectedImageFile);
+        previewImage.src = selectedImageUrl;
+        await previewImage.decode();
+        productImagePreviewText.textContent = 'Drag the image anywhere inside the square guide to position it, then click Crop image before Create Product.';
+        drawCanvas();
+    });
+
+    cropCanvas.addEventListener('pointerdown', function (event) {
+        if (!selectedImageUrl) return;
+        event.preventDefault();
+        cropCanvas.setPointerCapture(event.pointerId);
+        startSelection(getCanvasCoordinates(event));
+    });
+    cropCanvas.addEventListener('pointermove', function (event) {
+        if (!isDragging) return;
+        event.preventDefault();
+        updateSelection(getCanvasCoordinates(event));
+    });
+    cropCanvas.addEventListener('pointerup', function (event) {
+        event.preventDefault();
+        if (cropCanvas.hasPointerCapture(event.pointerId)) {
+            cropCanvas.releasePointerCapture(event.pointerId);
+        }
+        finishSelection();
+    });
+    cropCanvas.addEventListener('pointercancel', function (event) {
+        event.preventDefault();
+        if (cropCanvas.hasPointerCapture(event.pointerId)) {
+            cropCanvas.releasePointerCapture(event.pointerId);
+        }
+        finishSelection();
+    });
+    cropCanvas.addEventListener('pointerleave', function (event) {
+        if (!isDragging) return;
+        event.preventDefault();
+        finishSelection();
+    });
+
+    cropImageBtn.addEventListener('click', async function () {
+        if (!selectedImageUrl) {
+            productImagePreviewText.textContent = 'Please choose an image first.';
+            return;
+        }
+        if (!cropSelection || cropSelection.width === 0 || cropSelection.height === 0) {
+            productImagePreviewText.textContent = 'Please draw a crop box on the image first.';
+            return;
+        }
+
+        const cropArea = getCropAreaOnOriginal();
+        if (!cropArea || cropArea.sw === 0 || cropArea.sh === 0) {
+            productImagePreviewText.textContent = 'Crop area is invalid. Try again.';
+            return;
+        }
+
+        const cropCanvasSmall = document.createElement('canvas');
+        cropCanvasSmall.width = CROP_OUTPUT_WIDTH;
+        cropCanvasSmall.height = CROP_OUTPUT_HEIGHT;
+        const ctx = cropCanvasSmall.getContext('2d');
+        ctx.drawImage(previewImage, cropArea.sx, cropArea.sy, cropArea.sw, cropArea.sh, 0, 0, CROP_OUTPUT_WIDTH, CROP_OUTPUT_HEIGHT);
+
+        try {
+            const blob = await new Promise((resolve, reject) => {
+                cropCanvasSmall.toBlob(blob => {
+                    if (!blob) {
+                        reject(new Error('Unable to create cropped image. Please try again.'));
+                        return;
+                    }
+                    resolve(blob);
+                }, 'image/jpeg', 0.92);
+            });
+            croppedImageBlob = blob;
+            productPreviewImg.src = URL.createObjectURL(blob);
+            productPreviewImg.classList.remove('d-none');
+            productImagePreviewText.textContent = 'Image cropped and ready for upload. You can now create the product.';
+        } catch (err) {
+            productImagePreviewText.textContent = err.message || 'Unable to create cropped image. Please try again.';
+        }
+    });
+
+    document.getElementById('productForm').addEventListener('submit', async function (e) {
+        e.preventDefault();
+        if (!selectedShopId) {
+            productMessage.classList.remove('d-none', 'alert-success');
+            productMessage.classList.add('alert-danger');
+            productMessage.innerText = 'Please select a shop before adding a product.';
+            return;
+        }
+        const name = document.getElementById('productName').value.trim();
+        const brand = document.getElementById('productBrand').value.trim() || null;
+        const description = document.getElementById('productDescription').value.trim();
+        const priceValue = document.getElementById('productPrice').value;
+        const stockValue = document.getElementById('productStock').value;
+        const discountValue = document.getElementById('productDiscountPercent').value;
+        const categoryValue = document.getElementById('productCategory').value;
+        const price = priceValue === '' ? null : parseFloat(priceValue);
+        const stock = stockValue === '' ? null : parseInt(stockValue, 10);
+        const discountPercent = discountValue === '' ? null : parseFloat(discountValue);
+
+        if (!name) {
+            productMessage.className = 'alert alert-danger';
+            productMessage.classList.remove('d-none');
+            productMessage.innerText = 'Product name is required.';
+            return;
+        }
+        if (price === null || Number.isNaN(price) || price < 0) {
+            productMessage.className = 'alert alert-danger';
+            productMessage.classList.remove('d-none');
+            productMessage.innerText = 'Please enter a valid price.';
+            return;
+        }
+        if (stock === null || Number.isNaN(stock) || stock < 0) {
+            productMessage.className = 'alert alert-danger';
+            productMessage.classList.remove('d-none');
+            productMessage.innerText = 'Please enter a valid stock value.';
+            return;
+        }
+
+        const payload = {
+            name,
+            brand,
+            description,
+            price,
+            discountPercent: discountPercent === null || Number.isNaN(discountPercent) ? null : discountPercent,
+            stock,
+            category: categoryValue || null,
+            imagePath: productImagePath.value || '',
+            active: true
+        };
+        const originalSubmitText = submitProductButton.textContent;
+        submitProductButton.disabled = true;
+        submitProductButton.textContent = editingProductId ? 'Saving...' : 'Creating...';
+        productMessage.className = 'alert alert-info';
+        productMessage.classList.remove('d-none');
+        productMessage.innerText = editingProductId ? 'Saving product changes...' : 'Creating product...';
+        try {
+            let result;
+            if (editingProductId) {
+                result = await updateProduct(editingProductId, payload);
+                productMessage.innerText = 'Product updated: ' + result.name;
+            } else {
+                result = await createProduct(payload);
+                productMessage.innerText = 'Product created: ' + result.name;
+            }
+
+            productMessage.className = 'alert alert-success';
+            await loadProductsForShop(selectedShopId);
+            resetProductForm();
+        } catch (err) {
+            productMessage.className = 'alert alert-danger';
+            productMessage.innerText = err.message || 'Unable to save product. Please check required fields and try again.';
+        } finally {
+            submitProductButton.disabled = false;
+            submitProductButton.textContent = originalSubmitText;
+        }
+    });
+
+    cancelEditButton.addEventListener('click', resetProductForm);
+    document.getElementById('productPrice').addEventListener('input', updateDiscountedPriceDisplay);
+    document.getElementById('productDiscountPercent').addEventListener('input', updateDiscountedPriceDisplay);
+    shopSelect.addEventListener('change', async function () {
+        selectedShopId = shopSelect.value;
+        await loadProductsForShop(selectedShopId);
+    });
+    document.getElementById('refreshShops').addEventListener('click', async function () {
+        await loadShops();
+    });
+
+    window.addEventListener('resize', drawCanvas);
+    resetProductForm();
+    loadShops();
+</script>
+</body>
+</html>
