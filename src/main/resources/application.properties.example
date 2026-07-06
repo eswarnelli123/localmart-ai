@@ -1,0 +1,26 @@
+# Example application properties (do NOT commit secrets)
+spring.datasource.url=jdbc:mysql://${SPRING_DATASOURCE_HOST:localhost}:${SPRING_DATASOURCE_PORT:3306}/${SPRING_DATASOURCE_NAME:localmart_ai_db}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+spring.datasource.driver-class-name=com.mysql.cj.jdbc.Driver
+spring.datasource.username=${SPRING_DATASOURCE_USERNAME:root}
+spring.datasource.password=${SPRING_DATASOURCE_PASSWORD:}
+spring.jpa.hibernate.ddl-auto=none
+spring.jpa.show-sql=true
+spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.MySQL8Dialect
+
+# Mail (use app-specific password or external provider)
+spring.mail.host=${SPRING_MAIL_HOST:smtp.gmail.com}
+spring.mail.port=${SPRING_MAIL_PORT:587}
+spring.mail.username=${SPRING_MAIL_USERNAME:you@example.com}
+spring.mail.password=${SPRING_MAIL_PASSWORD:}
+spring.mail.from=${SPRING_MAIL_FROM:you@example.com}
+
+# Server
+server.port=${SERVER_PORT:8080}
+
+# JWT
+jwt.secret=${JWT_SECRET:change_me}
+jwt.expiration=${JWT_EXPIRATION:86400000}
+
+# Notes:
+# - Create a local file 'application-local.properties' and set values for development.
+# - Keep real secrets out of Git; use environment variables in production.
