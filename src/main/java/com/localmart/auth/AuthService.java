@@ -59,8 +59,12 @@ public class AuthService {
         otpVerification.setUsed(false);
         otpRepository.save(otpVerification);
 
-        emailService.sendOtpEmail(email, otp);
-        return new AuthResponse(true, "Please verify your email with the OTP sent to your inbox.", null);
+        try {
+            emailService.sendOtpEmail(email, otp);
+            return new AuthResponse(true, "Please verify your email with the OTP sent to your inbox.", null);
+        } catch (Exception ex) {
+            return new AuthResponse(true, "Account created. OTP email could not be sent right now, but your verification code is available in the system for manual verification.", null);
+        }
     }
 
     public AuthResponse verifyOtp(String email, String otp) {
