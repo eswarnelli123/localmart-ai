@@ -24,7 +24,7 @@ public class NotificationService {
     private final NotificationRepository notificationRepository;
     private final UserRepository userRepository;
     private final RetailerRepository retailerRepository;
-    private final JavaMailSender mailSender;
+    private final java.util.Optional<JavaMailSender> mailSender;
     private final NotificationDeliveryStatusRepository deliveryStatusRepository;
 
     /**
@@ -204,7 +204,7 @@ public class NotificationService {
             mailMessage.setFrom("projectofmca@gmail.com");
             mailMessage.setReplyTo("projectofmca@gmail.com");
 
-            mailSender.send(mailMessage);
+            mailSender.ifPresent(s -> s.send(mailMessage));
 
             status.setStatus(NotificationDeliveryStatus.DeliveryStatus.delivered);
             status.setSentAt(LocalDateTime.now());

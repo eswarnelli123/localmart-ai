@@ -1,6 +1,7 @@
 package com.localmart.config;
 
 import org.springframework.boot.autoconfigure.mail.MailProperties;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.mail.javamail.JavaMailSender;
@@ -12,6 +13,7 @@ import java.util.Properties;
 public class MailConfig {
 
     @Bean
+    @ConditionalOnProperty(prefix = "spring.mail", name = "host")
     public JavaMailSender javaMailSender(MailProperties mailProperties) {
         JavaMailSenderImpl mailSender = new JavaMailSenderImpl();
         mailSender.setHost(mailProperties.getHost());
